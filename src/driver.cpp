@@ -20,21 +20,11 @@ using namespace std;
 int main(){
 
 	int ret;
-	char iframe[1024];
-	string siframe = "eth0";
-	float buffer[6];
+	float *buffer;
 	char IOmap[4096];
+	int chk;
 
-	int psize = sizeof(buffer);
-
-	cout << "sizeof(buffer) = " << sizeof(buffer) << endl;
-
-	strncpy(iframe, siframe.c_str(), 1024);
-
-	ret = ec_init(iframe);			// 初始化soem
-	cout << "ret = " << ret << endl; 
-    perror("--------------");
-
+	ret = ec_init(IFRAME);			// 初始化soem
 	if(ret < 0){
 		cout << "ec_init error, ret = " << ret << endl;
 		return -1;
@@ -51,19 +41,40 @@ int main(){
 		cout << "ec_slave0 name was: " << ec_slave[1].name << endl;
 
 	ec_config_map(&IOmap);
-	ec_send_processdata();
-	ret = ec_receive_processdata(EC_TIMEOUTRET);
-	cout << "ret = " << ret << endl;
+	ec_configdc();
 
-	ec_writestate(0);											// 修改从站状态
-	ec_statecheck(0, EC_STATE_OPERATIONAL,  EC_TIMEOUTSTATE);	// 等待所有从站切换至OP状态
-	cout << "all slave state was op" << endl;
+	ec_statecheck(0, EC_STATE_SAFE_OP,  EC_TIMEOUTSTATE);	// 等待所有从站切换至OP状态
+	cout << "all slave state was safe op" << endl;
 
-	ret = ec_TxPDO(1, 0x6000, &psize, buffer, EC_TIMEOUTRXM);
-	cout << "ec_TxPDO ret = " << ret << endl;
 
-	cout << "buffer[0] = " << buffer[0] << endl;
+	ec_slave[0].state = EC_STATE_OPERATIONAL;
+        ec_send_processdata();
+        ec_receive_processdata(EC_TIMEOUTRET);
+	ec_writestate(0);
 
-	sleep(10);
+	
+	chk = 40;
+        do
+        {
+            ec_send_processdata();
+            ec_receive_processdata(EC_TIMEOUTRET);
+            ec_statecheck(0, EC_STATE_OPERATIONAL, 50000);
+        }
+        while (chk-- && (ec_slave[0].state != EC_STATE_OPERATIONAL));
+
+	cout << "+++++++++++++++++++++" << chk << endl;
+	cout << "Obits" << ec_slave[1].Ibits << endl;
+ 
+
+	while(1){
+		ec_send_processdata();
+		ret = ec_receive_processdata(EC_TIMEOUTRET);
+		cout << "ec_receive_processdata ret = " << ret << endl;
+		buffer = (float *)ec_slave[1].inputs;
+		cout << "Fx=" << buffer[0] << " || Fy= " << buffer[1] << " || Fz=" << buffer[2] << " || Tx=" << buffer[3] << " || Ty=" << buffer[4] << " || Tz=" << buffer[5] << endl;
+		usleep(100000);
+	}
+
+
 	return 0;
 }
