@@ -23,6 +23,7 @@ int main(){
 	char iframe[1024];
 	string siframe = "eth0";
 	float buffer[6];
+	char IOmap[4096];
 
 	int psize = sizeof(buffer);
 
@@ -49,8 +50,19 @@ int main(){
 	if(ec_slavecount > 0)
 		cout << "ec_slave0 name was: " << ec_slave[1].name << endl;
 
-	ec_TxPDO(1, 0x6000, &psize, buffer, 100);
-	cout << "psize = " << psize << endl;
+	ec_config_map(&IOmap);
+	ec_send_processdata();
+	ret = ec_receive_processdata(EC_TIMEOUTRET);
+	cout << "ret = " << ret << endl;
+
+	ec_writestate(0);											// 修改从站状态
+	ec_statecheck(0, EC_STATE_OPERATIONAL,  EC_TIMEOUTSTATE);	// 等待所有从站切换至OP状态
+	cout << "all slave state was op" << endl;
+
+	ret = ec_TxPDO(1, 0x6000, &psize, buffer, EC_TIMEOUTRXM);
+	cout << "ec_TxPDO ret = " << ret << endl;
+
+	cout << "buffer[0] = " << buffer[0] << endl;
 
 	sleep(10);
 	return 0;
